@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPERSIDER GLOBALLY</title>
+    <style>
+        body {
+            margin: 0;
+            background: #1A302F;
+            color: #86F5AF;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #globeViz {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(26, 48, 47, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            z-index: 100;
+            color: white;
+        }
+        
+        .info-panel h2 {
+            margin-top: 0;
+            color: #86F5AF;
+        }
+        
+        .country-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 48, 47, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 400px;
+            max-height: 85vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .category-panel {
+            position: absolute;
+            top: 20px;
+            right: 430px;
+            background: rgba(26, 48, 47, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            max-height: 85vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .category-panel h3 {
+            margin-top: 0;
+            color: #86F5AF;
+        }
+        
+        .category-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            user-select: none;
+            font-size: 13px;
+            border: 2px solid transparent;
+        }
+        
+        .category-item:hover {
+            background: rgba(134, 245, 175, 0.2);
+        }
+        
+        .category-item.active {
+            background: #86F5AF !important;
+            color: #1A302F;
+            border-color: #DAFF87;
+        }
+        
+        .category-name {
+            font-size: 13px;
+            flex-grow: 1;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .category-count {
+            font-size: 11px;
+            color: #86F5AF;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+        
+        .category-item.active .category-count {
+            color: #1A302F;
+        }
+        
+        .country-panel h3 {
+            margin-top: 0;
+            color: #86F5AF;
+        }
+        
+        .country-controls {
+            margin-bottom: 15px;
+        }
+        
+        .country-controls button {
+            background: #86F5AF;
+            color: #1A302F;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .country-controls button:hover {
+            background: #DAFF87;
+        }
+        
+        .country-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            max-height: none;
+        }
+        
+        .country-item {
+            display: flex;
+            align-items: center;
+            margin: 1px 0;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            user-select: none;
+            font-size: 11px;
+        }
+        
+        .country-item:hover {
+            background: rgba(134, 245, 175, 0.2);
+        }
+        
+        .country-item.selected {
+            background: #86F5AF !important;
+            color: #1A302F;
+        }
+        
+        .country-item.selected .country-count {
+            color: #1A302F;
+        }
+        
+        .country-name {
+            font-size: 11px;
+            flex-grow: 1;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .country-count {
+            font-size: 10px;
+            color: #86F5AF;
+            margin-left: 5px;
+            font-weight: bold;
+        }
+        
+        .country-info-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 48, 47, 0.95);
+            border: 2px solid #86F5AF;
+            border-radius: 10px;
+            padding: 20px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+            box-shadow: 0 0 20px rgba(134, 245, 175, 0.5);
+            min-width: 300px;
+            text-align: center;
+        }
+        
+        .country-info-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .country-info-title {
+            font-size: 24px;
+            color: #86F5AF;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+        
+        .country-info-count {
+            font-size: 18px;
+            color: #DAFF87;
+            margin-bottom: 15px;
+        }
+        
+        .supersiders-text {
+            font-size: 14px;
+            color: #DAFF87;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .close-info {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        
+        .close-info:hover {
+            color: #DAFF87;
+        }
+        
+        /* Custom tooltip styles */
+        .custom-tooltip {
+            position: absolute;
+            background: rgba(26, 48, 47, 0.95);
+            border: 2px solid #86F5AF;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 13px;
+            white-space: nowrap;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            max-width: 250px;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .custom-tooltip.show {
+            opacity: 1;
+        }
+        
+        .tooltip-name {
+            color: #86F5AF;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .tooltip-count {
+            color: #DAFF87;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .tooltip-coords {
+            color: rgba(134, 245, 175, 0.7);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+    <script src="//cdn.jsdelivr.net/npm/globe.gl"></script>
+</head>
+
+<body>
+    <div id="globeViz"></div>
+    
+    <div class="info-panel">
+        <h2>SUPERSIDER GLOBALLY</h2>
+        <p>Total countries: <span id="country-count">0</span></p>
+        <p>Supersiders selected: <span id="total-count">0</span></p>
+        <p><em>Click on points to see details</em></p>
+    </div>
+    
+    <div class="category-panel">
+        <h3>Categories</h3>
+        <div class="category-list" id="categoryList">
+            <!-- Categories will be populated here -->
+        </div>
+    </div>
+    
+    <div class="country-panel">
+        <h3>Countries</h3>
+        <div class="country-controls">
+            <button onclick="selectAllCountries()">Select All</button>
+            <button onclick="deselectAllCountries()">Deselect All</button>
+        </div>
+        <div class="country-list" id="countryList">
+            <!-- Countries will be populated here -->
+        </div>
+    </div>
+
+    <!-- Country Info Overlay -->
+    <div class="country-info-overlay" id="countryInfoOverlay">
+        <button class="close-info" onclick="hideCountryInfo()">×</button>
+        <div class="country-info-title" id="countryInfoTitle">COUNTRY NAME</div>
+        <div class="country-info-count" id="countryInfoCount">000</div>
+        <div class="supersiders-text">SUPERSIDERS</div>
+    </div>
+
+    <!-- Custom Tooltip -->
+    <div class="custom-tooltip" id="customTooltip">
+        <div class="tooltip-name" id="tooltipName">COUNTRY NAME</div>
+        <div class="tooltip-count" id="tooltipCount">000 SUPERSIDERS</div>
+        <div class="tooltip-coords" id="tooltipCoords">Lat: 0.00°, Lng: 0.00°</div>
+    </div>
+
+    <script>
+        // Your country data
+        const countryData = [
+            { name: "Argentina", count: 86, coordinates: { lat: -34.6037, lng: -58.3816 } },
+            { name: "Armenia", count: 3, coordinates: { lat: 40.1792, lng: 44.4991 } },
+            { name: "Australia", count: 1, coordinates: { lat: -25.2744, lng: 133.7751 } },
+            { name: "Belarus", count: 1, coordinates: { lat: 53.7098, lng: 27.9534 } },
+            { name: "Bosnia & Herzegovina", count: 4, coordinates: { lat: 43.9159, lng: 17.6791 } },
+            { name: "Brazil", count: 82, coordinates: { lat: -14.2350, lng: -51.9253 } },
+            { name: "Bulgaria", count: 1, coordinates: { lat: 42.7339, lng: 25.4858 } },
+            { name: "Canada", count: 16, coordinates: { lat: 56.1304, lng: -106.3468 } },
+            { name: "Colombia", count: 67, coordinates: { lat: 4.5709, lng: -74.2973 } },
+            { name: "Costa Rica", count: 15, coordinates: { lat: 9.7489, lng: -83.7534 } },
+            { name: "Croatia", count: 1, coordinates: { lat: 45.1000, lng: 15.2000 } },
+            { name: "Cyprus", count: 1, coordinates: { lat: 35.1264, lng: 33.4299 } },
+            { name: "Czech Republic", count: 1, coordinates: { lat: 49.8175, lng: 15.4730 } },
+            { name: "Denmark", count: 1, coordinates: { lat: 56.2639, lng: 9.5018 } },
+            { name: "Dominican Republic", count: 6, coordinates: { lat: 18.7357, lng: -70.1627 } },
+            { name: "Ecuador", count: 5, coordinates: { lat: -1.8312, lng: -78.1834 } },
+            { name: "Egypt", count: 3, coordinates: { lat: 26.0975, lng: 31.2357 } },
+            { name: "El Salvador", count: 7, coordinates: { lat: 13.7942, lng: -88.8965 } },
+            { name: "France", count: 3, coordinates: { lat: 46.6034, lng: 1.8883 } },
+            { name: "Georgia", count: 1, coordinates: { lat: 42.3154, lng: 43.3569 } },
+            { name: "Germany", count: 8, coordinates: { lat: 51.1657, lng: 10.4515 } },
+            { name: "Ghana", count: 1, coordinates: { lat: 7.9465, lng: -1.0232 } },
+            { name: "Greece", count: 6, coordinates: { lat: 39.0742, lng: 21.8243 } },
+            { name: "Guatemala", count: 4, coordinates: { lat: 15.7835, lng: -90.2308 } },
+            { name: "Honduras", count: 1, coordinates: { lat: 15.2000, lng: -86.2419 } },
+            { name: "Hungary", count: 5, coordinates: { lat: 47.1625, lng: 19.5033 } },
+            { name: "India", count: 8, coordinates: { lat: 20.5937, lng: 78.9629 } },
+            { name: "Indonesia", count: 8, coordinates: { lat: -0.7893, lng: 113.9213 } },
+            { name: "Ireland", count: 1, coordinates: { lat: 53.4129, lng: -8.2439 } },
+            { name: "Italy", count: 7, coordinates: { lat: 41.8719, lng: 12.5674 } },
+            { name: "Jordan", count: 1, coordinates: { lat: 30.5852, lng: 36.2384 } },
+            { name: "Kenya", count: 1, coordinates: { lat: -0.0236, lng: 37.9062 } },
+            { name: "Latvia", count: 1, coordinates: { lat: 56.8796, lng: 24.6032 } },
+            { name: "Lebanon", count: 2, coordinates: { lat: 33.8547, lng: 35.8623 } },
+            { name: "Libya", count: 2, coordinates: { lat: 26.3351, lng: 17.2283 } },
+            { name: "Lithuania", count: 3, coordinates: { lat: 55.1694, lng: 23.8813 } },
+            { name: "Malaysia", count: 3, coordinates: { lat: 4.2105, lng: 101.9758 } },
+            { name: "Mauritius", count: 1, coordinates: { lat: -20.3484, lng: 57.5522 } },
+            { name: "Mexico", count: 39, coordinates: { lat: 23.6345, lng: -102.5528 } },
+            { name: "Netherlands", count: 4, coordinates: { lat: 52.1326, lng: 5.2913 } },
+            { name: "Nicaragua", count: 3, coordinates: { lat: 12.2650, lng: -85.2072 } },
+            { name: "Nigeria", count: 1, coordinates: { lat: 9.0820, lng: 8.6753 } },
+            { name: "North Macedonia", count: 2, coordinates: { lat: 41.6086, lng: 21.7453 } },
+            { name: "Norway", count: 7, coordinates: { lat: 60.4720, lng: 8.4689 } },
+            { name: "Palestine", count: 1, coordinates: { lat: 31.9522, lng: 35.2332 } },
+            { name: "Panama", count: 7, coordinates: { lat: 8.5380, lng: -80.7821 } },
+            { name: "Paraguay", count: 1, coordinates: { lat: -23.4425, lng: -58.4438 } },
+            { name: "Peru", count: 9, coordinates: { lat: -9.1900, lng: -75.0152 } },
+            { name: "Philippines", count: 8, coordinates: { lat: 12.8797, lng: 121.7740 } },
+            { name: "Poland", count: 13, coordinates: { lat: 51.9194, lng: 19.1451 } },
+            { name: "Portugal", count: 40, coordinates: { lat: 39.3999, lng: -8.2245 } },
+            { name: "Romania", count: 7, coordinates: { lat: 45.9432, lng: 24.9668 } },
+            { name: "Russian Federation", count: 2, coordinates: { lat: 61.5240, lng: 105.3188 } },
+            { name: "Serbia", count: 8, coordinates: { lat: 44.0165, lng: 21.0059 } },
+            { name: "Slovenia", count: 1, coordinates: { lat: 46.1512, lng: 14.9955 } },
+            { name: "South Africa", count: 139, coordinates: { lat: -30.5595, lng: 22.9375 } },
+            { name: "Spain", count: 39, coordinates: { lat: 40.4637, lng: -3.7492 } },
+            { name: "Sweden", count: 1, coordinates: { lat: 60.1282, lng: 18.6435 } },
+            { name: "Thailand", count: 1, coordinates: { lat: 15.8700, lng: 100.9925 } },
+            { name: "Tunisia", count: 2, coordinates: { lat: 33.8869, lng: 9.5375 } },
+            { name: "Turkey", count: 2, coordinates: { lat: 38.9637, lng: 35.2433 } },
+            { name: "Ukraine", count: 4, coordinates: { lat: 48.3794, lng: 31.1656 } },
+            { name: "United Arab Emirates", count: 5, coordinates: { lat: 23.4241, lng: 53.8478 } },
+            { name: "United Kingdom", count: 12, coordinates: { lat: 55.3781, lng: -3.4360 } },
+            { name: "United States of America (USA)", count: 18, coordinates: { lat: 37.0902, lng: -95.7129 } },
+            { name: "Uruguay", count: 9, coordinates: { lat: -32.5228, lng: -55.7658 } },
+            { name: "Venezuela", count: 4, coordinates: { lat: 6.4238, lng: -66.5897 } }
+        ];
+
+        // Track which countries are enabled
+        let enabledCountries = new Set(countryData.map(country => country.name));
+        
+        // Track active category
+        let activeCategory = null;
+        
+        // Define regional categories
+        const categories = {
+            'lone_wolf': {
+                name: 'Lone Wolf',
+                countries: countryData.filter(country => country.count === 1).map(country => country.name)
+            },
+            'latin_america': {
+                name: 'Latin America',
+                countries: ['Argentina', 'Brazil', 'Colombia', 'Costa Rica', 'Dominican Republic', 'Ecuador', 'El Salvador', 'Guatemala', 'Honduras', 'Mexico', 'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela']
+            },
+            'europe': {
+                name: 'Europe',
+                countries: ['Armenia', 'Belarus', 'Bosnia & Herzegovina', 'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic', 'Denmark', 'France', 'Georgia', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy', 'Latvia', 'Lithuania', 'Netherlands', 'North Macedonia', 'Norway', 'Poland', 'Portugal', 'Romania', 'Russian Federation', 'Serbia', 'Slovenia', 'Spain', 'Sweden', 'Turkey', 'Ukraine', 'United Kingdom']
+            },
+            'africa': {
+                name: 'Africa',
+                countries: ['Egypt', 'Ghana', 'Kenya', 'Libya', 'Mauritius', 'Nigeria', 'South Africa', 'Tunisia']
+            }
+        };
+        
+        // Initialize the globe variable
+        let myGlobe;
+
+        // Function to animate category selection - NO HIGHLIGHTING
+        function animateCategorySelection(countryNames) {
+            // Just log that category was selected, no visual highlighting
+            console.log('Category selected with countries:', countryNames);
+        }
+
+        // Function to get color based on count
+        function getPointColor(count) {
+            if (count >= 50) return '#DAFF87'; // High count - Bright Green
+            if (count >= 10) return '#86F5AF'; // Medium count - Medium Green
+            return '#4A9B5E'; // Low count - Dark Green
+        }
+
+        // Function to get point size based on count
+        function getPointSize(count) {
+            if (count >= 50) return 0.8;
+            if (count >= 10) return 0.5;
+            return 0.3;
+        }
+
+        // Function to calculate distance between two points
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in kilometers
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Generate connections between countries
+        function generateConnections(enabledCountriesSet = enabledCountries) {
+            const connections = [];
+            
+            // Filter countries to only enabled ones
+            const activeCountries = countryData.filter(country => enabledCountriesSet.has(country.name));
+            
+            // Check if we're in Lone Wolf mode
+            const isLoneWolfMode = activeCategory === 'lone_wolf';
+            
+            // Connect ALL enabled countries to each other with some probability
+            for (let i = 0; i < activeCountries.length; i++) {
+                for (let j = i + 1; j < activeCountries.length; j++) {
+                    const country1 = activeCountries[i];
+                    const country2 = activeCountries[j];
+                    
+                    const distance = calculateDistance(
+                        country1.coordinates.lat, country1.coordinates.lng,
+                        country2.coordinates.lat, country2.coordinates.lng
+                    );
+                    
+                    // Create a seed for consistent randomness based on country names
+                    const seed = (country1.name + country2.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const pseudoRandom = Math.sin(seed) * 10000;
+                    const randomValue = pseudoRandom - Math.floor(pseudoRandom);
+                    
+                    // Create connections with higher probability for enabled countries
+                    let shouldConnect = false;
+                    
+                    // Higher chance of connection for any enabled countries
+                    const avgCount = (country1.count + country2.count) / 2;
+                    let probability = 0.4; // Base probability for any enabled countries
+                    
+                    // Special handling for Lone Wolf mode - much higher probability
+                    if (isLoneWolfMode && country1.count === 1 && country2.count === 1) {
+                        probability = 0.85; // Very high probability for lone wolves to connect to each other
+                    } else {
+                        // Increase probability based on counts
+                        if (avgCount >= 50) probability = 0.8;
+                        else if (avgCount >= 20) probability = 0.6;
+                    }
+                    
+                    // Reduce probability based on distance
+                    if (distance > 10000) probability *= 0.4;
+                    else if (distance > 5000) probability *= 0.7;
+                    
+                    shouldConnect = randomValue < probability;
+                    
+                    if (shouldConnect) {
+                        connections.push({
+                            startLat: country1.coordinates.lat,
+                            startLng: country1.coordinates.lng,
+                            endLat: country2.coordinates.lat,
+                            endLng: country2.coordinates.lng,
+                            startCountry: country1.name,
+                            endCountry: country2.name,
+                            startCount: country1.count,
+                            endCount: country2.count,
+                            distance: distance
+                        });
+                    }
+                }
+            }
+            
+            return connections;
+        }
+
+        // Generate the connections
+        let connections = generateConnections();
+
+        // Functions to show/hide country info overlay
+        function showCountryInfo(country) {
+            const overlay = document.getElementById('countryInfoOverlay');
+            const title = document.getElementById('countryInfoTitle');
+            const count = document.getElementById('countryInfoCount');
+            
+            title.textContent = country.name.toUpperCase();
+            count.textContent = country.count.toString();
+            
+            overlay.classList.add('show');
+            
+            // Auto-hide after 2 seconds (reduced from 4)
+            setTimeout(() => {
+                hideCountryInfo();
+            }, 2000);
+        }
+        
+        function hideCountryInfo() {
+            const overlay = document.getElementById('countryInfoOverlay');
+            overlay.classList.remove('show');
+        }
+        
+        // Make hideCountryInfo global for onclick handler
+        window.hideCountryInfo = hideCountryInfo;
+
+        // Functions for category panel management
+        function populateCategoryList() {
+            const categoryList = document.getElementById('categoryList');
+            categoryList.innerHTML = '';
+            
+            Object.entries(categories).forEach(([categoryId, categoryData]) => {
+                const categoryItem = document.createElement('div');
+                categoryItem.className = 'category-item';
+                
+                // Add active class if this category is currently active
+                if (activeCategory === categoryId) {
+                    categoryItem.classList.add('active');
+                }
+                
+                // Click handler for the entire item
+                categoryItem.addEventListener('click', (e) => {
+                    // Deactivate other categories
+                    document.querySelectorAll('.category-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    
+                    if (activeCategory === categoryId) {
+                        // If clicking the same category, deactivate it
+                        activeCategory = null;
+                    } else {
+                        // Activate this category
+                        activeCategory = categoryId;
+                        categoryItem.classList.add('active');
+                        
+                        // Select only countries from this category
+                        const validCountries = categoryData.countries.filter(countryName => 
+                            countryData.some(country => country.name === countryName)
+                        );
+                        enabledCountries = new Set(validCountries);
+                        
+                        // Animate category selection
+                        animateCategorySelection(validCountries);
+                    }
+                    
+                    populateCategoryList();
+                    populateCountryList();
+                    updateVisualization();
+                });
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'category-name';
+                nameSpan.textContent = categoryData.name;
+                
+                const countSpan = document.createElement('span');
+                countSpan.className = 'category-count';
+                const validCountries = categoryData.countries.filter(countryName => 
+                    countryData.some(country => country.name === countryName)
+                );
+                countSpan.textContent = `(${validCountries.length})`;
+                
+                categoryItem.appendChild(nameSpan);
+                categoryItem.appendChild(countSpan);
+                
+                categoryList.appendChild(categoryItem);
+            });
+        }
+
+        // Functions for country panel management
+        function populateCountryList() {
+            const countryList = document.getElementById('countryList');
+            countryList.innerHTML = '';
+            
+            // Sort countries by count (descending)
+            const sortedCountries = [...countryData].sort((a, b) => b.count - a.count);
+            
+            sortedCountries.forEach(country => {
+                const countryItem = document.createElement('div');
+                countryItem.className = 'country-item';
+                
+                // Add selected class if country is enabled
+                if (enabledCountries.has(country.name)) {
+                    countryItem.classList.add('selected');
+                }
+                
+                // Click handler for the entire item
+                countryItem.addEventListener('click', (e) => {
+                    // Deactivate any active category when manually selecting countries
+                    if (activeCategory) {
+                        activeCategory = null;
+                        populateCategoryList();
+                    }
+                    
+                    if (enabledCountries.has(country.name)) {
+                        enabledCountries.delete(country.name);
+                        countryItem.classList.remove('selected');
+                    } else {
+                        enabledCountries.add(country.name);
+                        countryItem.classList.add('selected');
+                        
+                        // Show country info overlay
+                        showCountryInfo(country);
+                        
+                        // Focus on the country with smooth zoom
+                        myGlobe.pointOfView({
+                            lat: country.coordinates.lat,
+                            lng: country.coordinates.lng,
+                            altitude: 1.2
+                        }, 2000);
+                    }
+                    
+                    // Auto-update is always enabled now
+                    updateVisualization();
+                });
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'country-name';
+                nameSpan.textContent = country.name;
+                
+                const countSpan = document.createElement('span');
+                countSpan.className = 'country-count';
+                countSpan.textContent = `(${country.count})`;
+                
+                countryItem.appendChild(nameSpan);
+                countryItem.appendChild(countSpan);
+                
+                countryList.appendChild(countryItem);
+            });
+        }
+        
+        function selectAllCountries() {
+            activeCategory = null;
+            enabledCountries = new Set(countryData.map(country => country.name));
+            populateCategoryList();
+            populateCountryList();
+            // Auto-update is always enabled now
+            updateVisualization();
+        }
+        
+        function deselectAllCountries() {
+            activeCategory = null;
+            enabledCountries = new Set();
+            populateCategoryList();
+            populateCountryList();
+            // Auto-update is always enabled now
+            updateVisualization();
+        }
+        
+        function updateVisualization() {
+            // Filter countries and generate new connections
+            const enabledCountryData = countryData.filter(country => enabledCountries.has(country.name));
+            connections = generateConnections();
+            
+            // Update globe data
+            myGlobe.pointsData(enabledCountryData);
+            myGlobe.arcsData(connections);
+            
+            // Update info panel
+            updateInfoPanel();
+            
+            console.log(`Updated visualization: ${enabledCountryData.length} countries`);
+        }
+        
+        function updateInfoPanel() {
+            const enabledCountryData = countryData.filter(country => enabledCountries.has(country.name));
+            document.getElementById('country-count').textContent = enabledCountryData.length;
+            document.getElementById('total-count').textContent = enabledCountryData.reduce((sum, country) => sum + country.count, 0);
+        }
+
+        // Function to get arc color based on connection strength
+        function getArcColor(connection) {
+            const avgCount = (connection.startCount + connection.endCount) / 2;
+            const opacity = Math.min(0.3, avgCount / 200); // Reduced opacity significantly
+            
+            if (avgCount >= 50) return [`rgba(218, 255, 135, ${opacity})`, `rgba(218, 255, 135, ${opacity * 1.5})`]; // Bright Green
+            if (avgCount >= 20) return [`rgba(134, 245, 175, ${opacity})`, `rgba(134, 245, 175, ${opacity * 1.5})`]; // Medium Green
+            return [`rgba(74, 155, 94, ${opacity})`, `rgba(74, 155, 94, ${opacity * 1.5})`]; // Dark Green
+        }
+
+        // Initialize the globe
+        myGlobe = new Globe(document.getElementById('globeViz'))
+            .globeImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+            .backgroundImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png')
+            .pointOfView({ lat: 20, lng: 0, altitude: 2.5 })
+            
+            // Points configuration
+            .pointsData(countryData.filter(country => enabledCountries.has(country.name)))
+            .pointLat(d => d.coordinates.lat)
+            .pointLng(d => d.coordinates.lng)
+            .pointColor(d => getPointColor(d.count))
+            .pointAltitude(d => getPointSize(d.count) * 0.15) // Fixed altitude based on count
+            .pointRadius(d => getPointSize(d.count))
+            .pointLabel(d => null) // Disable built-in tooltip
+            .pointsMerge(true)
+            .pointsTransitionDuration(1000) // Smooth animation for bars
+            
+            // Arcs configuration (the connections between countries)
+            .arcsData(connections)
+            .arcStartLat(d => d.startLat)
+            .arcStartLng(d => d.startLng)
+            .arcEndLat(d => d.endLat)
+            .arcEndLng(d => d.endLng)
+            .arcColor(d => getArcColor(d))
+            .arcAltitude(0.1) // Fixed low altitude for all arcs
+            .arcStroke(0.2) // Very thin lines for all connections
+            .arcDashLength(0.25)
+            .arcDashGap(1)
+            .arcDashInitialGap(() => Math.random())
+            .arcDashAnimateTime(3000)
+            .arcsTransitionDuration(1000)
+            
+            .enablePointerInteraction(true);
+
+        // Removed pulsing animation - bars are now fixed height
+
+        // Initialize the interface
+        populateCategoryList();
+        populateCountryList();
+        updateInfoPanel();
+
+        // Make functions global for onclick handlers
+        window.selectAllCountries = selectAllCountries;
+        window.deselectAllCountries = deselectAllCountries;
+        window.updateVisualization = updateVisualization;
+
+        // Add click interaction for points
+        myGlobe.onPointClick((point, event) => {
+            console.log('Clicked country:', point.name, 'Count:', point.count);
+            
+            // Show country info overlay
+            showCountryInfo(point);
+            
+            // Center the globe on the clicked point
+            myGlobe.pointOfView({
+                lat: point.coordinates.lat,
+                lng: point.coordinates.lng,
+                altitude: 1.5
+            }, 1000);
+        });
+
+        // Add hover interaction for points (debug)
+        myGlobe.onPointHover((point, prevPoint) => {
+            const tooltip = document.getElementById('customTooltip');
+            
+            if (point) {
+                console.log('Hovering over:', point.name);
+                
+                // Update tooltip content
+                document.getElementById('tooltipName').textContent = point.name;
+                document.getElementById('tooltipCount').textContent = `${point.count} SUPERSIDERS`;
+                document.getElementById('tooltipCoords').textContent = `Lat: ${point.coordinates.lat.toFixed(2)}°, Lng: ${point.coordinates.lng.toFixed(2)}°`;
+                
+                // Show tooltip
+                tooltip.classList.add('show');
+                
+                // Position tooltip near mouse (we'll use a fixed position for now)
+                tooltip.style.left = '50%';
+                tooltip.style.top = '30%';
+                tooltip.style.transform = 'translate(-50%, -50%)';
+            } else {
+                // Hide tooltip
+                tooltip.classList.remove('show');
+            }
+        });
+        
+        // Track mouse position for better tooltip positioning
+        document.addEventListener('mousemove', (e) => {
+            const tooltip = document.getElementById('customTooltip');
+            if (tooltip.classList.contains('show')) {
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+                tooltip.style.transform = 'none';
+            }
+        });
+
+        // Add click interaction for arcs
+        myGlobe.onArcClick((arc, event) => {
+            console.log('Clicked connection:', arc.startCountry, '↔', arc.endCountry);
+            // Center the globe between the two connected countries
+            const midLat = (arc.startLat + arc.endLat) / 2;
+            const midLng = (arc.startLng + arc.endLng) / 2;
+            myGlobe.pointOfView({
+                lat: midLat,
+                lng: midLng,
+                altitude: 2.0
+            }, 1000);
+        });
+
+        // Add some atmospheric effects
+        myGlobe.atmosphereAltitude(0.25);
+        myGlobe.atmosphereColor('lightskyblue');
+
+        // Auto-rotate the globe slowly
+        myGlobe.controls().autoRotate = true;
+        myGlobe.controls().autoRotateSpeed = 0.25;
+    </script>
+</body>
+</html>
