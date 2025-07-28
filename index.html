@@ -243,24 +243,29 @@
         
         /* Custom tooltip styles */
         .custom-tooltip {
-            position: absolute;
-            background: rgba(26, 48, 47, 0.95);
-            border: 2px solid #86F5AF;
+            position: fixed !important;
+            background: rgba(26, 48, 47, 0.98) !important;
+            border: 2px solid #86F5AF !important;
             border-radius: 8px;
             padding: 12px 16px;
-            color: white;
+            color: white !important;
             font-size: 13px;
             white-space: nowrap;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-            max-width: 250px;
-            z-index: 10000;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+            max-width: 300px;
+            z-index: 99999 !important;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.2s ease;
+            transition: all 0.15s ease;
+            display: none;
+            transform: translateZ(0);
+            will-change: transform, opacity;
         }
         
         .custom-tooltip.show {
-            opacity: 1;
+            opacity: 1 !important;
+            display: block !important;
+            visibility: visible !important;
         }
         
         .tooltip-name {
@@ -475,7 +480,11 @@
             // Check if we're in Lone Wolf mode
             const isLoneWolfMode = activeCategory === 'lone_wolf';
             
-            // Connect ALL enabled countries to each other with some probability
+            // Ensure every country gets at least one connection (especially lone wolves)
+            const countryConnections = new Map();
+            activeCountries.forEach(country => countryConnections.set(country.name, 0));
+            
+            // Connect ALL enabled countries to each other with varying probability
             for (let i = 0; i < activeCountries.length; i++) {
                 for (let j = i + 1; j < activeCountries.length; j++) {
                     const country1 = activeCountries[i];
@@ -486,32 +495,49 @@
                         country2.coordinates.lat, country2.coordinates.lng
                     );
                     
-                    // Create a seed for consistent randomness based on country names
-                    const seed = (country1.name + country2.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                    const pseudoRandom = Math.sin(seed) * 10000;
-                    const randomValue = pseudoRandom - Math.floor(pseudoRandom);
+                    // Create multiple seeds for more variety in connections
+                    const seed1 = (country1.name + country2.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const seed2 = (country2.name + country1.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const seed3 = Math.abs(country1.coordinates.lat * country2.coordinates.lng);
+                    const combinedSeed = (seed1 + seed2 + seed3) % 10000;
                     
-                    // Create connections with higher probability for enabled countries
-                    let shouldConnect = false;
+                    const pseudoRandom = Math.sin(combinedSeed * 0.001) * 10000;
+                    const randomValue = Math.abs(pseudoRandom - Math.floor(pseudoRandom));
                     
-                    // Higher chance of connection for any enabled countries
-                    const avgCount = (country1.count + country2.count) / 2;
-                    let probability = 0.4; // Base probability for any enabled countries
+                    // Reduced base probability for fewer overall connections
+                    let probability = 0.08; // Much lower base probability
                     
-                    // Special handling for Lone Wolf mode - much higher probability
-                    if (isLoneWolfMode && country1.count === 1 && country2.count === 1) {
-                        probability = 0.85; // Very high probability for lone wolves to connect to each other
+                    // Special handling for Lone Wolf mode or lone wolf countries
+                    if (isLoneWolfMode || (country1.count === 1 || country2.count === 1)) {
+                        // Give lone wolves better chances to connect
+                        probability = 0.25;
+                        
+                        // Boost probability if either country has no connections yet
+                        if (countryConnections.get(country1.name) === 0 || countryConnections.get(country2.name) === 0) {
+                            probability = 0.45;
+                        }
                     } else {
-                        // Increase probability based on counts
-                        if (avgCount >= 50) probability = 0.8;
-                        else if (avgCount >= 20) probability = 0.6;
+                        // Varied probability for non-lone wolves
+                        const countFactor = Math.min((country1.count + country2.count) / 300, 0.15); // Reduced factor
+                        const distanceFactor = Math.max(0.05, 1 - (distance / 15000)); // Slightly favor closer countries
+                        const randomFactor = Math.random() * 0.12; // Reduced randomness
+                        
+                        probability = 0.05 + countFactor + (distanceFactor * 0.08) + randomFactor;
+                        
+                        // Boost for countries with few connections
+                        if (countryConnections.get(country1.name) < 2 || countryConnections.get(country2.name) < 2) {
+                            probability += 0.15;
+                        }
+                        
+                        // Ensure probability stays within bounds
+                        probability = Math.min(Math.max(probability, 0.05), 0.35); // Lower max probability
                     }
                     
-                    // Reduce probability based on distance
-                    if (distance > 10000) probability *= 0.4;
-                    else if (distance > 5000) probability *= 0.7;
+                    // Add time-based variation for more dynamic connections
+                    const timeVariation = Math.sin(Date.now() * 0.0001 + combinedSeed) * 0.05;
+                    probability += timeVariation;
                     
-                    shouldConnect = randomValue < probability;
+                    const shouldConnect = randomValue < probability;
                     
                     if (shouldConnect) {
                         connections.push({
@@ -525,10 +551,42 @@
                             endCount: country2.count,
                             distance: distance
                         });
+                        
+                        // Track connections for each country
+                        countryConnections.set(country1.name, countryConnections.get(country1.name) + 1);
+                        countryConnections.set(country2.name, countryConnections.get(country2.name) + 1);
                     }
                 }
             }
             
+            // Ensure isolated countries (especially lone wolves) get at least one connection
+            const isolatedCountries = activeCountries.filter(country => countryConnections.get(country.name) === 0);
+            isolatedCountries.forEach(isolatedCountry => {
+                // Find a random partner for isolated countries
+                const potentialPartners = activeCountries.filter(country => country.name !== isolatedCountry.name);
+                if (potentialPartners.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * potentialPartners.length);
+                    const partner = potentialPartners[randomIndex];
+                    
+                    connections.push({
+                        startLat: isolatedCountry.coordinates.lat,
+                        startLng: isolatedCountry.coordinates.lng,
+                        endLat: partner.coordinates.lat,
+                        endLng: partner.coordinates.lng,
+                        startCountry: isolatedCountry.name,
+                        endCountry: partner.name,
+                        startCount: isolatedCountry.count,
+                        endCount: partner.count,
+                        distance: calculateDistance(
+                            isolatedCountry.coordinates.lat, isolatedCountry.coordinates.lng,
+                            partner.coordinates.lat, partner.coordinates.lng
+                        )
+                    });
+                }
+            });
+            
+            console.log(`Generated ${connections.length} connections for ${activeCountries.length} countries`);
+            console.log(`Isolated countries that got forced connections: ${isolatedCountries.length}`);
             return connections;
         }
 
@@ -744,10 +802,10 @@
             .pointLat(d => d.coordinates.lat)
             .pointLng(d => d.coordinates.lng)
             .pointColor(d => getPointColor(d.count))
-            .pointAltitude(d => getPointSize(d.count) * 0.15) // Fixed altitude based on count
-            .pointRadius(d => getPointSize(d.count))
-            .pointLabel(d => null) // Disable built-in tooltip
-            .pointsMerge(true)
+            .pointAltitude(d => getPointSize(d.count) * 0.2) // Increased altitude for better hover detection
+            .pointRadius(d => getPointSize(d.count) * 1.2) // Increased radius for better hover detection
+            .pointLabel(d => null) // Disable built-in tooltip completely
+            .pointsMerge(false) // Changed to false for better individual point detection
             .pointsTransitionDuration(1000) // Smooth animation for bars
             
             // Arcs configuration (the connections between countries)
@@ -779,6 +837,91 @@
         window.deselectAllCountries = deselectAllCountries;
         window.updateVisualization = updateVisualization;
 
+        // Debug: Test tooltip on page load
+        setTimeout(() => {
+            const tooltip = document.getElementById('customTooltip');
+            console.log('Testing tooltip visibility...');
+            tooltip.style.display = 'block';
+            tooltip.style.position = 'fixed';
+            tooltip.style.left = '100px';
+            tooltip.style.top = '100px';
+            tooltip.style.opacity = '1';
+            tooltip.style.zIndex = '99999';
+            tooltip.classList.add('show');
+            
+            setTimeout(() => {
+                tooltip.classList.remove('show');
+                tooltip.style.display = 'none';
+                tooltip.style.opacity = '0';
+            }, 2000);
+        }, 1000);
+
+        // Debug: Check if points are being rendered
+        setTimeout(() => {
+            const pointsData = myGlobe.pointsData();
+            console.log('Points data:', pointsData);
+            console.log('Number of points:', pointsData.length);
+            
+            // Force re-register hover events
+            console.log('Re-registering hover events...');
+            myGlobe.onPointHover((point, prevPoint) => {
+                const tooltip = document.getElementById('customTooltip');
+                console.log('HOVER EVENT:', { point, prevPoint });
+                
+                if (point && point.name) {
+                    console.log('SHOWING tooltip for:', point.name);
+                    
+                    // Cancel any pending hide timeout
+                    showTooltipImmediate();
+                    
+                    // Force show tooltip first with all necessary styles
+                    tooltip.style.display = 'block';
+                    tooltip.style.visibility = 'visible';
+                    tooltip.style.opacity = '1';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.zIndex = '99999';
+                    tooltip.style.pointerEvents = 'none';
+                    tooltip.style.background = 'rgba(26, 48, 47, 0.98)';
+                    tooltip.style.border = '2px solid #86F5AF';
+                    tooltip.style.borderRadius = '8px';
+                    tooltip.style.padding = '12px 16px';
+                    tooltip.style.color = 'white';
+                    
+                    // Update tooltip content
+                    const nameEl = document.getElementById('tooltipName');
+                    const countEl = document.getElementById('tooltipCount');
+                    const coordsEl = document.getElementById('tooltipCoords');
+                    
+                    if (nameEl) nameEl.textContent = point.name.toUpperCase();
+                    if (countEl) countEl.textContent = `${point.count} SUPERSIDERS`;
+                    if (coordsEl) coordsEl.textContent = `Lat: ${point.coordinates.lat.toFixed(2)}°, Lng: ${point.coordinates.lng.toFixed(2)}°`;
+                    
+                    // Position tooltip following mouse with offset
+                    const offsetX = 25;
+                    const offsetY = -40;
+                    let x = currentMouseX + offsetX;
+                    let y = currentMouseY + offsetY;
+                    
+                    // Keep within bounds
+                    if (x + 300 > window.innerWidth) x = currentMouseX - 300 - offsetX;
+                    if (y < 0) y = currentMouseY + offsetX;
+                    
+                    tooltip.style.left = x + 'px';
+                    tooltip.style.top = y + 'px';
+                    tooltip.style.transform = 'none';
+                    
+                    // Add the show class
+                    tooltip.classList.add('show');
+                    
+                    console.log('Tooltip styles applied and should be visible');
+                } else {
+                    console.log('HIDING tooltip with delay');
+                    // Hide tooltip with delay instead of immediately
+                    hideTooltipDelayed();
+                }
+            });
+        }, 2000);
+
         // Add click interaction for points
         myGlobe.onPointClick((point, event) => {
             console.log('Clicked country:', point.name, 'Count:', point.count);
@@ -794,39 +937,131 @@
             }, 1000);
         });
 
-        // Add hover interaction for points (debug)
+        // Add hover interaction for points
         myGlobe.onPointHover((point, prevPoint) => {
             const tooltip = document.getElementById('customTooltip');
+            console.log('onPointHover triggered', { point, prevPoint });
             
-            if (point) {
-                console.log('Hovering over:', point.name);
+            if (point && point.name) {
+                console.log('SHOWING tooltip for:', point.name);
+                
+                // Cancel any pending hide timeout
+                showTooltipImmediate();
+                
+                // Force show tooltip first with all necessary styles
+                tooltip.style.display = 'block';
+                tooltip.style.visibility = 'visible';
+                tooltip.style.opacity = '1';
+                tooltip.style.position = 'fixed';
+                tooltip.style.zIndex = '99999';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.background = 'rgba(26, 48, 47, 0.98)';
+                tooltip.style.border = '2px solid #86F5AF';
+                tooltip.style.borderRadius = '8px';
+                tooltip.style.padding = '12px 16px';
+                tooltip.style.color = 'white';
                 
                 // Update tooltip content
-                document.getElementById('tooltipName').textContent = point.name;
-                document.getElementById('tooltipCount').textContent = `${point.count} SUPERSIDERS`;
-                document.getElementById('tooltipCoords').textContent = `Lat: ${point.coordinates.lat.toFixed(2)}°, Lng: ${point.coordinates.lng.toFixed(2)}°`;
+                const nameEl = document.getElementById('tooltipName');
+                const countEl = document.getElementById('tooltipCount');
+                const coordsEl = document.getElementById('tooltipCoords');
                 
-                // Show tooltip
+                if (nameEl) nameEl.textContent = point.name.toUpperCase();
+                if (countEl) countEl.textContent = `${point.count} SUPERSIDERS`;
+                if (coordsEl) coordsEl.textContent = `Lat: ${point.coordinates.lat.toFixed(2)}°, Lng: ${point.coordinates.lng.toFixed(2)}°`;
+                
+                // Position tooltip following mouse with offset
+                const offsetX = 25;
+                const offsetY = -40;
+                let x = currentMouseX + offsetX;
+                let y = currentMouseY + offsetY;
+                
+                // Keep within bounds
+                if (x + 300 > window.innerWidth) x = currentMouseX - 300 - offsetX;
+                if (y < 0) y = currentMouseY + offsetX;
+                
+                tooltip.style.left = x + 'px';
+                tooltip.style.top = y + 'px';
+                tooltip.style.transform = 'none';
+                
+                // Add the show class
                 tooltip.classList.add('show');
                 
-                // Position tooltip near mouse (we'll use a fixed position for now)
-                tooltip.style.left = '50%';
-                tooltip.style.top = '30%';
-                tooltip.style.transform = 'translate(-50%, -50%)';
+                console.log('Tooltip styles applied and should be visible');
             } else {
-                // Hide tooltip
-                tooltip.classList.remove('show');
+                console.log('HIDING tooltip with delay');
+                // Hide tooltip with delay instead of immediately
+                hideTooltipDelayed();
             }
         });
         
         // Track mouse position for better tooltip positioning
-        document.addEventListener('mousemove', (e) => {
-            const tooltip = document.getElementById('customTooltip');
-            if (tooltip.classList.contains('show')) {
-                tooltip.style.left = (e.clientX + 15) + 'px';
-                tooltip.style.top = (e.clientY - 10) + 'px';
-                tooltip.style.transform = 'none';
+        let currentMouseX = 0;
+        let currentMouseY = 0;
+        let isTooltipVisible = false;
+        let tooltipTimeout = null; // Add timeout for delayed hiding
+        
+        // Function to hide tooltip with delay
+        function hideTooltipDelayed() {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
             }
+            tooltipTimeout = setTimeout(() => {
+                const tooltip = document.getElementById('customTooltip');
+                tooltip.classList.remove('show');
+                tooltip.style.display = 'none';
+                tooltip.style.opacity = '0';
+                tooltip.style.visibility = 'hidden';
+                console.log('Tooltip hidden after delay');
+            }, 1000); // 1 second delay
+        }
+        
+        // Function to show tooltip immediately
+        function showTooltipImmediate() {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+        }
+        
+        document.addEventListener('mousemove', (e) => {
+            currentMouseX = e.clientX;
+            currentMouseY = e.clientY;
+            
+            const tooltip = document.getElementById('customTooltip');
+            if (tooltip && tooltip.classList.contains('show')) {
+                // Add some offset to avoid cursor blocking the tooltip
+                const offsetX = 25;
+                const offsetY = -40;
+                
+                let x = currentMouseX + offsetX;
+                let y = currentMouseY + offsetY;
+                
+                // Keep tooltip within viewport bounds
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const tooltipWidth = 300; // estimated width
+                const tooltipHeight = 100; // estimated height
+                
+                if (x + tooltipWidth > viewportWidth) {
+                    x = currentMouseX - tooltipWidth - offsetX;
+                }
+                if (y < 0) {
+                    y = currentMouseY + offsetX;
+                }
+                if (y + tooltipHeight > viewportHeight) {
+                    y = currentMouseY - tooltipHeight - offsetX;
+                }
+                
+                tooltip.style.left = x + 'px';
+                tooltip.style.top = y + 'px';
+            }
+        });
+
+        // Alternative hover detection using raycasting
+        document.getElementById('globeViz').addEventListener('mousemove', (event) => {
+            // This is a backup hover detection method
+            console.log('Mouse moving over globe area');
         });
 
         // Add click interaction for arcs
@@ -848,7 +1083,16 @@
 
         // Auto-rotate the globe slowly
         myGlobe.controls().autoRotate = true;
-        myGlobe.controls().autoRotateSpeed = 0.25;
+        myGlobe.controls().autoRotateSpeed = 0.125; // Reduced from 0.25 to half speed
+        
+        // Regenerate connections periodically for more dynamic visualization
+        setInterval(() => {
+            if (enabledCountries.size > 0) {
+                connections = generateConnections();
+                myGlobe.arcsData(connections);
+                console.log('Connections regenerated automatically');
+            }
+        }, 8000); // Regenerate every 8 seconds (slower regeneration for fewer but more varied connections)
     </script>
 </body>
 </html>
